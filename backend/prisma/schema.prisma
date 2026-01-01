@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  DRIVER
+  STORE_OWNER
+  ADMIN
+}
+
+enum StoreType {
+  RESTAURANT
+  CAFE
+  SUPERMARKET
+  GROCERY
+  GIFTS
+  CLOTHING
+  OTHER
+}
+
+enum FulfillmentType {
+  INSTANT
+  NON_INSTANT
+}
+
+enum OrderStatus {
+  PENDING_STORE
+  STORE_ACCEPTED_CONDITIONAL
+  DELIVERY_CONFIRMING
+  DELIVERY_CONFIRMED
+  PREPARING
+  READY
+  ON_THE_WAY
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryProviderType {
+  INTERNAL_DRIVER
+  TAXI_OFFICE
+}
+
+enum DeliveryStatus {
+  PENDING
+  CONFIRMED
+  SCHEDULED
+  PICKING_UP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+
+enum DriverContractStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  TERMINATED
+}
+
+model User {
+  id         String   @id @default(cuid())
+  phone      String   @unique
+  name       String?
+  role       UserRole @default(CUSTOMER)
+  isActive   Boolean  @default(true)
+  trustScore Int      @default(50)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  addresses Address[]
+  otps      OtpCode[]
+  sessions  Session[]
+  orders    Order[]
+
+  // Driver-only extras
+  driverStatus     DriverStatus?
+  driverDeliveries Delivery[]    @relation("DriverDeliveries")
+
+  driverContracts DriverContract[]
+}
+
+model DriverContract {
+  id             String               @id @default(cuid())
+  driverUserId   String
+  startDate      DateTime
+  endDate        DateTime
+  autoRenew      Boolean              @default(false)
+  commissionRate Int                  @default(0) // percentage (e.g. 10 = 10%)
+  status         DriverContractStatus @default(ACTIVE)
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  driverUser User @relation(fields: [driverUserId], references: [id], onDelete: Cascade)
+
+  @@index([driverUserId])
+  @@index([status, endDate])
+}
+
+model DriverStatus {
+  userId     String   @id
+  isOnline   Boolean  @default(false)
+  lastSeenAt DateTime @default(now())
+  lastLat    Float?
+  lastLng    Float?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String?
+  city      String?
+  area      String?
+  details   String?
+  lat       Float
+  lng       Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenJti  String    @unique
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Store {
+  id              String          @id @default(cuid())
+  name            String
+  type            StoreType
+  fulfillmentType FulfillmentType
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+
+  branches StoreBranch[]
+  menus    Menu[]
+  orders   Order[]
+}
+
+model StoreBranch {
+  id              String  @id @default(cuid())
+  storeId         String
+  name            String?
+  city            String?
+  area            String?
+  lat             Float
+  lng             Float
+  isOpen          Boolean @default(true)
+  prepTimeMinutes Int     @default(30)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  orders Order[]
+
+  @@index([storeId])
+}
+
+model Menu {
+  id        String   @id @default(cuid())
+  storeId   String
+  title     String   @default("Main Menu")
+  createdAt DateTime @default(now())
+
+  store Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items MenuItem[]
+}
+
+model MenuItem {
+  id          String  @id @default(cuid())
+  menuId      String
+  name        String
+  description String?
+  imageUrl    String?
+  basePrice   Int
+  prepMinutes Int     @default(15)
+  isActive    Boolean @default(true)
+
+  menu         Menu          @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  optionGroups OptionGroup[]
+}
+
+model OptionGroup {
+  id        String @id @default(cuid())
+  itemId    String
+  name      String
+  minSelect Int    @default(0)
+  maxSelect Int    @default(1)
+
+  item    MenuItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  options OptionItem[]
+}
+
+model OptionItem {
+  id       String  @id @default(cuid())
+  groupId  String
+  name     String
+  priceAdd Int     @default(0)
+  isActive Boolean @default(true)
+
+  group OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  storeId   String
+  branchId  String
+  addressId String
+  status    OrderStatus @default(PENDING_STORE)
+
+  subtotal    Int @default(0)
+  deliveryFee Int @default(0)
+  total       Int @default(0)
+
+  prepMinutes   Int?
+  notesToStore  String?
+  notesToDriver String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store   Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  branch  StoreBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  address Address     @relation(fields: [addressId], references: [id], onDelete: Restrict)
+
+  items    OrderItem[]
+  delivery Delivery?
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  itemId    String
+  nameSnap  String
+  unitPrice Int
+  qty       Int
+  notes     String?
+
+  order   Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  options OrderItemOption[]
+}
+
+model OrderItemOption {
+  id          String @id @default(cuid())
+  orderItemId String
+  nameSnap    String
+  priceAdd    Int    @default(0)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+}
+
+model Delivery {
+  id           String               @id @default(cuid())
+  orderId      String               @unique
+  providerType DeliveryProviderType
+  status       DeliveryStatus       @default(PENDING)
+
+  driverUserId String?
+  taxiOfficeId String?
+
+  confirmedAt     DateTime?
+  scheduledMoveAt DateTime?
+  startedMovingAt DateTime?
+  pickedUpAt      DateTime?
+  deliveredAt     DateTime?
+
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  taxiOffice TaxiOffice? @relation(fields: [taxiOfficeId], references: [id], onDelete: SetNull)
+
+  driverUser User? @relation("DriverDeliveries", fields: [driverUserId], references: [id])
+
+  dispatchAttempts TaxiDispatchAttempt[]
+}
+
+model TaxiOffice {
+  id         String     @id @default(cuid())
+  name       String
+  city       String?
+  area       String?
+  whatsapp   String
+  priority   Int        @default(100)
+  isActive   Boolean    @default(true)
+  deliveries Delivery[]
+}
+
+model TaxiDispatchAttempt {
+  id           String    @id @default(cuid())
+  deliveryId   String
+  taxiOfficeId String
+  status       String
+  sentAt       DateTime  @default(now())
+  respondedAt  DateTime?
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@index([taxiOfficeId])
+}
