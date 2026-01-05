@@ -26,11 +26,15 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      phone = inputPhone.trim(); // 🔒 تثبيت الرقم
+      phone = inputPhone.trim();
+      if (phone.length < 6 || phone.length > 20) {
+        throw Exception('Phone number must be between 6-20 characters');
+      }
+      
       name = (inputName ?? '').trim();
       await _service.requestOtp(phone);
     } catch (e) {
-      error = 'Failed to send OTP';
+      error = e.toString().contains('Failed to send OTP') ? 'Failed to send OTP. Please check your connection and try again.' : e.toString();
     } finally {
       loading = false;
       notifyListeners();

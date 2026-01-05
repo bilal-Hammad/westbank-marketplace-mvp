@@ -1,5 +1,5 @@
 class Endpoints {
-  static const baseUrl = 'http://192.168.88.6:4000';
+  static const baseUrl = 'http://localhost:4001';
 
   // Auth
   static const requestOtp = '/auth/request-otp';

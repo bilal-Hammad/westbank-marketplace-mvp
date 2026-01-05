@@ -61,4 +61,11 @@ Future<void> verifyOtp(String otp) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
   }
+
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    isLoggedIn = false;
+    notifyListeners();
+  }
 }

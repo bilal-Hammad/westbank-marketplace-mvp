@@ -37,12 +37,9 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('token');
+              await context.read<AuthProvider>().logout();
 
-              final auth = context.read<AuthProvider>();
               final address = context.read<AddressProvider>();
-              auth.isLoggedIn = false;
               address.reset();
               context.read<CartProvider>().clear();
               await context.read<OrderProvider>().clearLastOrder();

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../state/address_provider.dart';
+import '../../state/auth_provider.dart';
+import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 
 class AddressScreen extends StatefulWidget {
@@ -25,12 +27,15 @@ class _AddressScreenState extends State<AddressScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AddressProvider>().loadAddresses();
+      final provider = context.read<AddressProvider>();
+      provider.addListener(_onProviderChanged);
+      provider.loadAddresses();
     });
   }
 
   @override
   void dispose() {
+    context.read<AddressProvider>().removeListener(_onProviderChanged);
     _labelC.dispose();
     _cityC.dispose();
     _areaC.dispose();
@@ -38,6 +43,19 @@ class _AddressScreenState extends State<AddressScreen> {
     _latC.dispose();
     _lngC.dispose();
     super.dispose();
+  }
+
+  void _onProviderChanged() {
+    final provider = context.read<AddressProvider>();
+    if (provider.error == 'Unauthorized') {
+      // Token invalid, logout
+      context.read<AuthProvider>().logout();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   double _parseDouble(String v) => double.tryParse(v.trim()) ?? 0.0;

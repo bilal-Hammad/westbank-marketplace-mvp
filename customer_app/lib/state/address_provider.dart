@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 
 import '../data/models/address_model.dart';
 import '../data/services/address_service.dart';
@@ -26,8 +27,12 @@ class AddressProvider extends ChangeNotifier {
 
     try {
       addresses = await _service.getAddresses();
-    } catch (_) {
-      error = 'Failed to load addresses';
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 401) {
+        error = 'Unauthorized';
+      } else {
+        error = 'Failed to load addresses';
+      }
     } finally {
       loading = false;
       notifyListeners();

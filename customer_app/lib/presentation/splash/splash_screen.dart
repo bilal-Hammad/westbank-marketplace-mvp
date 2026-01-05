@@ -30,7 +30,12 @@ class _SplashScreenState extends State<SplashScreen> {
     await auth.loadSession();
     if (auth.isLoggedIn) {
       await address.loadAddresses();
-      await orders.loadLastOrderId();
+      if (address.error == 'Unauthorized') {
+        // Token is invalid, clear it
+        await auth.logout();
+      } else {
+        await orders.loadLastOrderId();
+      }
     }
 
     await Future.delayed(const Duration(seconds: 1));

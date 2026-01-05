@@ -77,6 +77,23 @@ export async function startDeliveryConfirmation(orderId: string) {
   await scheduleTaxiMove(orderId);
 }
 
+export async function scheduleTaxiMove(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { delivery: true, branch: true },
+  });
+  if (!order || !order.delivery) return;
+
+  // For taxi deliveries, schedule pickup after preparation time
+  const prep = order.prepMinutes ?? order.branch.prepTimeMinutes;
+  const scheduledMoveAt = new Date(Date.now() + prep * 60_000);
+
+  await prisma.delivery.update({
+    where: { id: order.delivery.id },
+    data: { scheduledMoveAt },
+  });
+}
+
 export async function scheduleInternalDriverMove(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },

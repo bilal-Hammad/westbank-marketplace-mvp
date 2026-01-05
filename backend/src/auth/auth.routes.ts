@@ -6,8 +6,13 @@ import { requireAuth, AuthedRequest } from "./auth.middleware";
 export const authRouter = Router();
 
 authRouter.post("/request-otp", async (req, res) => {
+  console.log("Received OTP request:", req.body);
   const parsed = RequestOtpSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "BAD_REQUEST", details: parsed.error.flatten() });
+  if (!parsed.success) {
+    console.log("OTP validation failed:", parsed.error);
+    return res.status(400).json({ error: "BAD_REQUEST", details: parsed.error.flatten() });
+  }
+  console.log("OTP validation passed for phone:", parsed.data.phone);
   await requestOtp(parsed.data.phone);
   res.json({ ok: true });
 });

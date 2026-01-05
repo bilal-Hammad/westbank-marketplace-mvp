@@ -10,13 +10,16 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 const OTP_TTL = Number(process.env.OTP_TTL_SECONDS || 300);
 
 export async function requestOtp(rawPhone: string) {
+  console.log("requestOtp called with:", rawPhone);
   const phone = normalizePhone(rawPhone);
+  console.log("Normalized phone:", phone);
 
   const user = await prisma.user.upsert({
     where: { phone },
     update: {},
     create: { phone, role: UserRole.CUSTOMER },
   });
+  console.log("User upserted:", user.id);
 
   const code = generateOtp();
   const codeHash = await hashOtp(code);

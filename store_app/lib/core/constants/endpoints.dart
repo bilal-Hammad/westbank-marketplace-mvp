@@ -3,7 +3,7 @@ class Endpoints {
   /// - Android emulator: http://10.0.2.2:4000
   /// - iOS simulator: http://localhost:4000
   /// - LAN device: http://<YOUR_PC_IP>:4000
-  static const baseUrl = 'http://localhost:4000';
+  static const baseUrl = 'http://localhost:4001';
 
   // Auth
   static const requestOtp = '/auth/request-otp';
